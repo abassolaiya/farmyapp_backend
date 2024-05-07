@@ -1,5 +1,41 @@
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import axios from "axios";
+
+const walletSchema = mongoose.Schema({
+  temporaryBalance: {
+    type: Number,
+    default: 0,
+    required: true,
+  },
+  finalBalance: {
+    type: Number,
+    default: 0,
+    required: true,
+  },
+});
+
+const locationSchema = new mongoose.Schema({
+  address: {
+    type: String,
+    required: true,
+  },
+  city: {
+    type: String,
+    required: true,
+  },
+  coordinates: {
+    type: {
+      type: String,
+      enum: ["Point"],
+      required: true,
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
+});
 
 const storeSchema = mongoose.Schema(
   {
@@ -8,71 +44,138 @@ const storeSchema = mongoose.Schema(
       required: true,
     },
     storeAddress: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     city: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     email: {
       type: String,
       required: true,
       unique: true,
     },
+    wallet: walletSchema,
+    storeLocations: [locationSchema],
     username: {
-        type: String,
-        unique:true
+      type: String,
+      unique: true,
+    },
+    referralId: {
+      type: mongoose.Schema.Types.ObjectId,
+    },
+    verificationCode: {
+      type: String,
     },
     slug: {
       type: String,
-      unique:true
-      },
+      unique: true,
+    },
     phoneNumber: {
-        type: String,
-        unique: true
+      type: String,
+      unique: true,
     },
     avatar: {
+      type: String,
+    },
+    coverPhoto: {
       type: String
     },
     password: {
       type: String,
       required: true,
     },
-    // location: {
-    //   type: {
-    //     type: String,
-    //     enum: ["Point"],
-    //     required: false,
-    //   },
-    //   coordinates: {
-    //     type: [Number],
-    //     required: false,
-    //   },
-    // },
+    bankCode: {
+      type: String,
+    },
+    accountName: {
+      type: String,
+    },
+    accountNumber: {
+      type: String,
+    },
+    recipientCode: {
+      type: String,
+    },
+    bankName: {
+      type: String,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// storeSchema.index({ location: "2dsphere" });
-
-// Match user entered password to hashed password in database
 storeSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Encrypt password using bcrypt
-storeSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
+storeSchema.pre("save", async function (next) {
+  if (!this.isModified("password") && !(this.isModified("accountNumber") || this.isModified("bankCode"))) {
+    return next();
   }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isNew || !this.wallet) {
+    this.wallet = {
+      temporaryBalance: 0,
+      finalBalance: 0,
+    };
+  }
+
+  try {
+    if (this.isModified("password")) {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+
+    if (this.isModified("accountNumber") || this.isModified("bankCode")) {
+      const recipientCode = await generateRecipientCode(
+        this.accountNumber,
+        this.bankCode,
+        this.accountName
+      );
+
+      this.recipientCode = recipientCode;
+    }
+
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 });
 
-const Store = mongoose.model('Store', storeSchema);
+async function generateRecipientCode(accountNumber, bankCode, accountName) {
+  const secretKey = process.env.PAY_STACK_SECRET_KEY;
+  const url = "https://api.paystack.co/transferrecipient";
+
+  try {
+    const response = await axios.post(
+      url,
+      {
+        type: "nuban",
+        name: accountName,
+        account_number: accountNumber,
+        bank_code: bankCode,
+        currency: "NGN",
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const recipientCode = response.data.data.recipient_code;
+    return recipientCode;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+const Store = mongoose.model("Store", storeSchema);
 
 export default Store;

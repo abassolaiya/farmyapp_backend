@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const waitlistSchema = mongoose.Schema(
   {
@@ -7,21 +7,18 @@ const waitlistSchema = mongoose.Schema(
       required: true,
     },
     email: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     phone: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     city: {
       type: String,
-      required: true,
-      unique: true,
     },
     role: {
-        type: String,
-        unique:true
+      type: String,
     },
   },
   {
@@ -29,6 +26,6 @@ const waitlistSchema = mongoose.Schema(
   }
 );
 
-const Waitlist = mongoose.model('Waitlist', waitlistSchema);
+const Waitlist = mongoose.model("Waitlist", waitlistSchema);
 
 export default Waitlist;

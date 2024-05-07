@@ -1,341 +1,450 @@
-import asyncHandler from 'express-async-handler';
+import asyncHandler from "express-async-handler";
 
-import StoreCategory from '../../models/stores/storeCategories.js';
-import StoreProduct from '../../models/stores/storeProductModel.js';
-import uploadToCloudinary from '../../utils/cloudinary.js';
-import Store from '../../models/stores/sellerModel.js';
-import slugify from 'slugify'
-;
+import StoreCategory from "../../models/stores/storeCategories.js";
+import StoreProduct from "../../models/stores/storeProductModel.js";
+import uploadToCloudinary from "../../utils/cloudinary.js";
+import Store from "../../models/stores/sellerModel.js";
+import slugify from "slugify";
+
+const getAverageRating = (reviews) => {
+  if (reviews.length === 0) return 0;
+
+  const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+  return total / reviews.length;
+};
+
 const getAllProducts = asyncHandler(async (req, res) => {
-    const page = Number(req.query.pageNumber)  || 1;
-    const pageSize = Number(req.query.pageSize) || 24;
+  const page = Number(req.query.pageNumber) || 1;
+  const pageSize = Number(req.query.pageSize) || 24;
 
-    const keyword = req.query.keyword
-        ? {
-            productName: {
-                $regex: req.query.keyword,
-                $options: 'si',
-            },
-        }
-        :{};
-    const count = await StoreProduct.countDocuments({...keyword });
+  const keyword = req.query.keyword
+    ? {
+        productName: {
+          $regex: req.query.keyword,
+          $options: "si",
+        },
+      }
+    : {};
+  const count = await StoreProduct.countDocuments({ ...keyword });
 
-    const products = await StoreProduct.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page-1));
+  const products = await StoreProduct.find({ ...keyword })
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
 
-    res.json({ products, page, pages: Math.ceil(count / pageSize) });
-})
+  const updatedProducts = await Promise.all(
+    products.map(async (product) => {
+      const allReviews = await Review.find({ product: product._id });
+      const averageRating = getAverageRating(allReviews);
+      return { ...product.toObject(), reviews: allReviews, averageRating };
+    })
+  );
+
+  res.json({ updatedProducts, page, pages: Math.ceil(count / pageSize) });
+});
 
 const getStoreProductsByUserId = asyncHandler(async (req, res) => {
-    const page = Number(req.query.pageNumber) || 1;
-    const pageSize = Number(req.query.pageSize) || 24;
+  const page = Number(req.query.pageNumber) || 1;
+  const pageSize = Number(req.query.pageSize) || 24;
 
-    const userId = req.params.userId; 
+  const userId = req.params.userId;
 
-    const keyword = req.query.keyword
-        ? {
-            userId: userId,
-            productName: {
-                $regex: req.query.keyword,
-                $options: 'si',
-            },
-        }
-        : {
-            userId: userId,
-        };
-    const count = await StoreProduct.countDocuments({ ...keyword });
+  const keyword = req.query.keyword
+    ? {
+        userId: userId,
+        productName: {
+          $regex: req.query.keyword,
+          $options: "si",
+        },
+      }
+    : {
+        userId: userId,
+      };
+  const count = await StoreProduct.countDocuments({ ...keyword });
 
-    const products = await StoreProduct.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page - 1));
+  const products = await StoreProduct.find({ ...keyword })
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
 
-    res.json({ products, page, pages: Math.ceil(count / pageSize) });
+  res.json({ products, page, pages: Math.ceil(count / pageSize) });
 });
 
 const getStoreProductsBySlug = asyncHandler(async (req, res) => {
-    const page = Number(req.query.pageNumber) || 1;
-    const pageSize = Number(req.query.pageSize) || 24;
+  const page = Number(req.query.pageNumber) || 1;
+  const pageSize = Number(req.query.pageSize) || 24;
 
-    const storeSlug = req.params.storeSlug; // Assuming you're passing storeSlug in the route parameter
+  const storeSlug = req.params.storeSlug;
 
-    // Find the store by its slug to get the userId
-    const store = await Store.findOne({ slug: storeSlug });
+  const store = await Store.findOne({ slug: storeSlug });
 
-    if (!store) {
-        res.status(404).json({ error: 'Store not found' });
-        return;
-    }
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
 
-    const userId = store._id; // Assuming the userId field exists in the Store model
-	const categories = await StoreCategory.find({ userId });
+  const userId = store._id; // Assuming the userId field exists in the Store model
+  const categories = await StoreCategory.find({ userId });
 
-    const keyword = req.query.keyword
-        ? {
-            userId: userId,
-            productName: {
-                $regex: req.query.keyword,
-                $options: 'si',
-            },
-            inStock: true // Only show products with inStock set to true
-        }
-        : {
-            userId: userId,
-            inStock: true
-        };
-    
-    const count = await StoreProduct.countDocuments({ ...keyword });
+  const keyword = req.query.keyword
+    ? {
+        userId: userId,
+        productName: {
+          $regex: req.query.keyword,
+          $options: "si",
+        },
+        inStock: true,
+      }
+    : {
+        userId: userId,
+        inStock: true,
+      };
 
-    const products = await StoreProduct.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page - 1));
+  if (req.query.categories && typeof req.query.categories === "string") {
+    keyword.category = { $in: req.query.categories.split(",") };
+  } else {
+  }
 
-    res.json({ 
-		storeName: store.storeName,
-        storeAddress: store.storeAddress,
-        city: store.city,
-        username: store.username,
-		categories,
-		products,
-		page, 
-		pages: Math.ceil(count / pageSize) });
+  const count = await StoreProduct.countDocuments({ ...keyword });
+
+  const products = await StoreProduct.find({ ...keyword })
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
+
+  res.json({
+    storeName: store.storeName,
+    storeAddress: store.storeAddress,
+    city: store.city,
+    username: store.username,
+    avatar: store.avatar,
+    categories,
+    products,
+    page,
+    pages: Math.ceil(count / pageSize),
+  });
 });
 
-
 const getAllCategories = asyncHandler(async (req, res) => {
-    const page = Number(req.query.pageNumber)  || 1;
-    const pageSize = Number(req.query.pageSize) || 24;
+  const page = Number(req.query.pageNumber) || 1;
+  const pageSize = Number(req.query.pageSize) || 24;
 
-    const keyword = req.query.keyword
-        ? {
-            category: {
-                $regex: req.query.keyword,
-                $options: 'si',
-            },
-        }
-        :{};
-    const count = await StoreCategory.countDocuments({...keyword });
+  const keyword = req.query.keyword
+    ? {
+        category: {
+          $regex: req.query.keyword,
+          $options: "si",
+        },
+      }
+    : {};
+  const count = await StoreCategory.countDocuments({ ...keyword });
 
-    const categories = await StoreCategory.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page-1));
+  const categories = await StoreCategory.find({ ...keyword })
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
 
-    res.json({ categories, page, pages: Math.ceil(count / pageSize) });
-})
+  res.json({ categories, page, pages: Math.ceil(count / pageSize) });
+});
 
 const getStoreCategories = asyncHandler(async (req, res) => {
-    const page = Number(req.query.pageNumber)  || 1;
-    const pageSize = Number(req.query.pageSize) || 24;
+  const page = Number(req.query.pageNumber) || 1;
+  const pageSize = Number(req.query.pageSize) || 24;
 
-	const storeSlug = req.params.storeSlug; // Assuming you're passing storeSlug in the route parameter
+  const storeSlug = req.params.storeSlug;
 
-    // Find the store by its slug to get the userId
-    const store = await Store.findOne({ slug: storeSlug });
+  const store = await Store.findOne({ slug: storeSlug });
 
-    if (!store) {
-        res.status(404).json({ error: 'Store not found' });
-        return;
-    }
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
 
-    const userId = store.userId;
+  const userId = store._id;
 
-	// const userId = req.params.userId;
+  const keyword = req.query.keyword
+    ? {
+        userId: userId, // Filter based on the store's userId
+        category: {
+          $regex: req.query.keyword,
+          $options: "si",
+        },
+      }
+    : { userId: userId }; // If no keyword, filter by userId only
 
-    const keyword = req.query.keyword
-        ? {
-			userId: userId,
-            category: {
-                $regex: req.query.keyword,
-                $options: 'si',
-            },
-        }
-        :{};
-    const count = await StoreCategory.countDocuments({...keyword });
+  const count = await StoreCategory.countDocuments({ ...keyword });
 
-    const categories = await StoreCategory.find({ ...keyword })
-        .limit(pageSize)
-        .skip(pageSize * (page-1));
+  const categories = await StoreCategory.find({ ...keyword })
+    .limit(pageSize)
+    .skip(pageSize * (page - 1));
 
-    res.json({ categories, page, pages: Math.ceil(count / pageSize) });
-})
+  res.json({ categories, page, pages: Math.ceil(count / pageSize) });
+});
 
 const getStoreCategoryById = asyncHandler(async (req, res) => {
-	const category = await StoreCategory.findById(req.params.id);
-    const products = await StoreProduct.find({ category: req.params._id });
-	if (category) res.json(category, products);
-	else {
-		// throw a custom error so that our error middleware can catch them and return apt json
-		res.status(404);
-		throw new Error('Category not found');
-	}
+  // console.log("it got here");
+  const category = await StoreCategory.findById(req.params.id);
+  const products = await StoreProduct.find({ category: req.params._id });
+  if (category) {
+    // Send both category and products as an object
+    res.json({ category, products });
+  } else {
+    // throw a custom error so that our error middleware can catch them and return apt json
+    res.status(404);
+    throw new Error("Category not found");
+  }
 });
 
 const getStoreProductById = asyncHandler(async (req, res) => {
-	const product = await StoreProduct.find({store:req.params.userId, _id:req.params.id});
-	if (product) res.json(product);
-	else {
-		// throw a custom error so that our error middleware can catch them and return apt json
-		res.status(404);
-		throw new Error('Product not found');
-	}
+  const product = await StoreProduct.findOne({
+    userId: req.store._id,
+    _id: req.params.id,
+  });
+  // console.log(product);
+  if (product) res.json(product);
+  else {
+    // throw a custom error so that our error middleware can catch them and return apt json
+    res.status(404);
+    throw new Error("Product not found");
+  }
 });
 
 const getStoreProductBySlug = asyncHandler(async (req, res) => {
-	const storeSlug = req.params.storeSlug; // Assuming you're passing storeSlug in the route parameter
+  const storeSlug = req.params.storeSlug;
+  const productSlug = req.params.slug;
 
-    // Find the store by its slug to get the userId
-    const store = await Store.findOne({ slug: storeSlug });
+  const store = await Store.findOne({ slug: storeSlug });
 
-    if (!store) {
-        res.status(404).json({ error: 'Store not found' });
-        return;
-    }
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
 
-    const userId = store.userId;
-	const product = await StoreProduct.find({store:userId, slug:req.params.slug});
-	if (product) res.json(product);
-	else {
-		// throw a custom error so that our error middleware can catch them and return apt json
-		res.status(404);
-		throw new Error('Product not found');
-	}
+  const userId = store._id;
+
+  const product = await StoreProduct.findOne({ userId, slug: productSlug });
+
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  const relatedProducts = await StoreProduct.find({
+    userId,
+    _id: { $ne: product._id },
+    $or: [
+      { productName: { $regex: product.productName, $options: "i" } }, // Similar spelling
+      {
+        productDescription: {
+          $regex: product.productDescription,
+          $options: "i",
+        },
+      }, // Similar description
+      {
+        price: {
+          $gte: parseFloat(product.price) - 100,
+          $lte: parseFloat(product.price) + 100,
+        },
+      },
+    ],
+  }).limit(5);
+
+  res.json({ product, relatedProducts });
+});
+
+const writeProductReview = asyncHandler(async (req, res) => {
+  const { text, rating } = req.body;
+  const userId = req.user._id; // Assuming you have user authentication middleware
+
+  const storeSlug = req.params.storeSlug; // Assuming you're passing storeSlug in the route parameter
+  const productSlug = req.params.slug; // Assuming you're passing product slug in the route parameter
+
+  // Find the store by its slug to get the userId
+  const store = await Store.findOne({ slug: storeSlug });
+
+  if (!store) {
+    res.status(404).json({ error: "Store not found" });
+    return;
+  }
+
+  // Find the product by store userId and product slug
+  const product = await StoreProduct.findOne({
+    store: store.userId,
+    slug: productSlug,
+  });
+
+  if (!product) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  // Check if the user has already reviewed this product
+  const existingReview = product.reviews.find(
+    (review) => review.user.toString() === userId.toString()
+  );
+
+  if (existingReview) {
+    res.status(400).json({ error: "You have already reviewed this product" });
+    return;
+  }
+
+  // Create a new review
+  const review = {
+    user: userId,
+    text,
+    rating,
+  };
+
+  // Add the review to the product's reviews array
+  product.reviews.push(review);
+
+  // Calculate the new average rating based on all reviews
+  const totalRating = product.reviews.reduce(
+    (sum, review) => sum + review.rating,
+    0
+  );
+  const newRating = totalRating / product.reviews.length;
+
+  // Update the product's rating and increment numReviews
+  product.rating = newRating;
+  product.numReviews += 1;
+
+  // Save the updated product
+  await product.save();
+
+  res.status(201).json({ message: "Review submitted successfully" });
 });
 
 const deleteStoreProduct = asyncHandler(async (req, res) => {
-	const product = await StoreProduct.findById(req.params.id);
-	if (product) {
-		await product.deleteOne();
-		res.json({ message: 'Product removed from DB' });
-	} else {
-		// throw a custom error so that our error middleware can catch them and return apt json
-		res.status(404);
-		throw new Error('Product not found');
-	}
+  const product = await StoreProduct.findById(req.params.id);
+  if (product) {
+    await product.deleteOne();
+    res.json({ message: "Product removed from DB" });
+  } else {
+    // throw a custom error so that our error middleware can catch them and return apt json
+    res.status(404);
+    throw new Error("Product not found");
+  }
 });
 
 const deleteStoreCategory = asyncHandler(async (req, res) => {
-	const category = await StoreCategory.findById(req.params.id);
-	if (category) {
-		await category.deleteOne();
-		res.json({ message: 'Category removed from DB' });
-	} else {
-		// throw a custom error so that our error middleware can catch them and return apt json
-		res.status(404);
-		throw new Error('Category not found');
-	}
+  const category = await StoreCategory.findById(req.params.id);
+  if (category) {
+    await category.deleteOne();
+    res.json({ message: "Category removed from DB" });
+  } else {
+    // throw a custom error so that our error middleware can catch them and return apt json
+    res.status(404);
+    throw new Error("Category not found");
+  }
 });
 
 const createStoreProduct = asyncHandler(async (req, res) => {
-	const {productName,productDescription,measuringScale,preparationTime, inStock, price, category} = req.body
-    var images = []
-	// const existingProduct = await FarmProduct.findOne({
-	// 	userId: userId,
-	// 	productName: productName,
-	// 	});
+  const {
+    productName,
+    productDescription,
+    measuringScale,
+    preparationTime,
+    inStock,
+    price,
+    category,
+  } = req.body;
+  var images = [];
 
-	// if (existingProduct) {
-	// // Handle error or update existingProduct
-	// } else {
-	// // Save the new product
-	// await newProduct.save();
-	// }
+  const slug = slugify(productName, { lower: true });
 
-	const slug = slugify(productName, { lower: true })
-    
-    for(var i=0;i<req.files.length;i++){
-      var localFilePath = req.files[i].path
-      var result = await uploadToCloudinary(localFilePath)
-      images.push(result.secure_url)
-    }
-	const product = new StoreProduct({
-		productName,
-        productDescription,
-        preparationTime,
-        inStock,
-        price,
-        category,
-        measuringScale,
-        userId: req.store._id,
-        images,
-		slug,
-        numReviews: 0,
-	});
-	const createdProduct = await product.save();
-	res.status(201).json(createdProduct);
+  for (var i = 0; i < req.files.length; i++) {
+    var localFilePath = req.files[i].path;
+    var result = await uploadToCloudinary(localFilePath);
+    images.push(result.secure_url);
+  }
+  // console.log(req.store);
+  const product = new StoreProduct({
+    productName,
+    productDescription,
+    preparationTime,
+    inStock,
+    price,
+    category,
+    measuringScale,
+    userId: req.store._id,
+    images,
+    slug,
+    numReviews: 0,
+  });
+  const createdProduct = await product.save();
+  res.status(201).json(createdProduct);
 });
 
 const createStoreCategory = asyncHandler(async (req, res) => {
-	const {name} = req.body
-    
+  const { name } = req.body;
 
-	const slug = slugify(name, { lower: true })
-    
-    
-	const category = new StoreCategory({
-		name,
-		userId: req.store._id,
-        slug
-	});
-	const createdCategory = await category.save();
-	res.status(201).json(createdCategory);
+  const slug = slugify(name, { lower: true });
+
+  const category = new StoreCategory({
+    name,
+    userId: req.store._id,
+    slug,
+  });
+  const createdCategory = await category.save();
+  res.status(201).json(createdCategory);
 });
 
 const updateStoreProduct = asyncHandler(async (req, res) => {
-	const {
-		productName,
-        productDescription,
-        preparationTime,
-        inStock,
-        price,
-        category,
-        measuringScale,
-	} = req.body;
-	const product = await StoreProduct.findById(req.params.id);
-	var images = []
+  const {
+    productName,
+    productDescription,
+    preparationTime,
+    inStock,
+    price,
+    category,
+    measuringScale,
+  } = req.body;
+  const product = await StoreProduct.findById(req.params.id);
+  var images = [];
 
-	// update the fields which are sent with the payload
-	if (product) {
-		if (productName) product.productName = productName;
-		if (productName) product.slug = slugify(productName, { lower: true });
-		if (productDescription) product.productDescription = productDescription;
-		if (measuringScale) product.measuringScale = measuringScale;
-		if (price) product.price = price;
-		if (preparationTime) product.preparationTime = preparationTime;
-		if (category) product.category = category;
-		if (inStock) product.inStock = inStock;
-		if (req.files) for(var i=0;i<req.files.length;i++){
-			var localFilePath = req.files[i].path
-			var result = await uploadToCloudinary(localFilePath)
-			images.push(result.secure_url)
-		  }
+  if (product) {
+    if (productName) product.productName = productName;
+    if (productName) product.slug = slugify(productName, { lower: true });
+    if (productDescription) product.productDescription = productDescription;
+    if (measuringScale) product.measuringScale = measuringScale;
+    if (price) product.price = price;
+    if (preparationTime) product.preparationTime = preparationTime;
+    if (category) product.category = category;
+    if (inStock) product.inStock = inStock;
+    if (req.files && req.files.length > 0) {
+      for (var i = 0; i < req.files.length; i++) {
+        var localFilePath = req.files[i].path;
+        var result = await uploadToCloudinary(localFilePath);
+        images.push(result.secure_url);
+      }
+      product.images = images;
+    }
 
-		const updatedProduct = await product.save();
-		if (updatedProduct) res.status(201).json(updatedProduct);
-	} else {
-		res.status(404);
-		throw new Error('Product not available');
-	}
+    const updatedProduct = await product.save();
+    if (updatedProduct) res.status(201).json(updatedProduct);
+  } else {
+    res.status(404);
+    throw new Error("Product not available");
+  }
 });
 
 const getTopStoreProducts = asyncHandler(async (req, res) => {
-	// get top 4 rated products
-	const topProducts = await StoreProduct.find({}).sort({ rating: -1 }).limit(4);
-	res.json(topProducts);
+  // get top 4 rated products
+  const topProducts = await StoreProduct.find({}).sort({ rating: -1 }).limit(4);
+  res.json(topProducts);
 });
 
 export {
-	getAllCategories,
-	getAllProducts,
-	getStoreCategories,
-	getStoreCategoryById,
-	getStoreProductById,
-	getStoreProductsBySlug,
-	getStoreProductsByUserId,
-	updateStoreProduct,
-	createStoreProduct,
-	deleteStoreProduct,
-	createStoreCategory,
-	getTopStoreProducts,
-	deleteStoreCategory,
-	getStoreProductBySlug
-}
+  getAllCategories,
+  getAllProducts,
+  getStoreCategories,
+  getStoreCategoryById,
+  getStoreProductById,
+  getStoreProductsBySlug,
+  getStoreProductsByUserId,
+  updateStoreProduct,
+  createStoreProduct,
+  deleteStoreProduct,
+  createStoreCategory,
+  getTopStoreProducts,
+  deleteStoreCategory,
+  getStoreProductBySlug,
+  writeProductReview,
+};

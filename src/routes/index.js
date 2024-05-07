@@ -3,6 +3,7 @@ import farmProductRoutes from './farms/farmProductRoutes.js'
 import userRoutes from './customers/userRoutes.js';
 import storeRoutes from './stores/storeRoutes.js';
 import logisticsRoutes from './logistics/logisticsRoutes.js'
+import BookLogisticsRoutes from './logistics/logisticsBookingRoutes.js'
 
 const routes = (app) => {
     const BaseUrl = '/api/v1'
@@ -12,6 +13,7 @@ const routes = (app) => {
     app.use(`${BaseUrl}/user`, userRoutes)
     app.use(`${BaseUrl}/store`, storeRoutes)
     app.use(`${BaseUrl}/logistics`, logisticsRoutes)
+    app.use(`${BaseUrl}/lb`, BookLogisticsRoutes)
 }
 
 export default routes;

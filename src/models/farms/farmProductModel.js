@@ -5,6 +5,8 @@ const farmProductSchema = mongoose.Schema(
     userId: {
         type: String,
         required: true,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Farm',
     },
     productName: {
       type: String,
