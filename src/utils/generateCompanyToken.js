@@ -1,9 +1,10 @@
 import jwt from 'jsonwebtoken';
 
-// const generateToken = (res, farmId) => {
-//   const token = jwt.sign({ farmId }, process.env.JWT_SECRET, {
+// const generateToken = (res, companyId) => {
+//   const token = jwt.sign({ storeId }, process.env.JWT_SECRET, {
 //     // expiresIn: '30d',
 //   });
+
 //   res.cookie('jwt', token, {
 //     httpOnly: true,
 //     secure: true, // Use secure cookies in production
@@ -13,11 +14,8 @@ import jwt from 'jsonwebtoken';
 // };
 
 // export default generateToken;
-
-// import jwt from 'jsonwebtoken';
-
-const generateToken = (farmId) => {
-  const token = jwt.sign({ farmId }, process.env.JWT_SECRET, {
+const generateToken = (companyId) => {
+  const token = jwt.sign({ companyId }, process.env.JWT_SECRET, {
     // expiresIn: '30d',
   });
 

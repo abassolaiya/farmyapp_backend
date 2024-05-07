@@ -4,13 +4,12 @@ import path from 'path'
 // Multer config
 const upload = multer({
   storage: multer.diskStorage({}),
-  fileFilter: (req, file, cb) => {
-    let ext = path.extname(file.originalname);  
-    if (ext !== ".jpg" && ext !== ".jpeg" && ext !== ".png") {
-      cb(new Error("File type is not supported"), false);
-      return;
+  fileFilter : (req, file, cb) => {
+    if (file.mimetype.startsWith("image")) {
+      cb(null, true);
+    } else {
+      cb("invalid image file!", false);
     }
-    cb(null, true);
   },
 });
 
