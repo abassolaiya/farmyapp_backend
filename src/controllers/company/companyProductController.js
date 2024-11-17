@@ -409,7 +409,6 @@ const updateCompanyProduct = asyncHandler(async (req, res) => {
     if (commission) product.commission = commission;
     if (category) product.category = category;
     if (inStock) product.inStock = inStock;
-
     // Check if new images are provided
     if (req.files && req.files.length > 0) {
       // New images uploaded

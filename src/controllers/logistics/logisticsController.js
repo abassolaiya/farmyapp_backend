@@ -50,9 +50,6 @@ const authLogistics = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Register a new logistics
-// @route   POST /api/logistics
-// @access  Public
 const registerLogistics = asyncHandler(async (req, res) => {
   const {
     logisticsName,

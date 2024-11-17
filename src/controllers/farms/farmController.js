@@ -58,6 +58,15 @@ const authFarm = asyncHandler(async (req, res) => {
     await farm.save();
   }
 
+  if (!farm.wallet) {
+    farm.wallet = {
+      temporaryBalance: 0,
+      finalBalance: 0,
+    };
+
+    await farm.save();
+  }
+
   if (farm && (await farm.matchPassword(password))) {
     const token = generateToken(farm._id);
 
@@ -78,9 +87,6 @@ const authFarm = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Register a new farm
-// @route   POST /api/farm
-// @access  Public
 const registerFarm = asyncHandler(async (req, res) => {
   const {
     farmName,
@@ -229,9 +235,6 @@ const getFarmProfile = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Update user profile
-// @route   PUT /api/users/profile
-// @access  Private
 const updateFarmProfile = asyncHandler(async (req, res) => {
   const farm = await Farm.findById(req.farm._id);
 

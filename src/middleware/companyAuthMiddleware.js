@@ -52,7 +52,6 @@ const protect = asyncHandler(async (req, res, next) => {
 async function checkCompanyProductOwnership(req, res, next) {
   const productId = req.params.id;
   let token = req.headers.authorization;
-
   if (token && token.startsWith("Bearer ")) {
     token = token.split(" ")[1];
 

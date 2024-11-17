@@ -121,7 +121,6 @@ const registerCompany = asyncHandler(async (req, res) => {
       coverPhoto,
       referralId,
     });
-
     if (!company) {
       return res.status(400).json({ error: "Failed to create company" });
     }

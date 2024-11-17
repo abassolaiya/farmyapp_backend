@@ -39,9 +39,6 @@ const authUser = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Register a new user
-// @route   POST /api/users
-// @access  Public
 const registerUser = asyncHandler(async (req, res) => {
   try {
     const { name, username, phoneNumber, email, password, referralId } =
@@ -192,6 +189,27 @@ const updateUserProfile = asyncHandler(async (req, res) => {
       const coverPhotoResult = await cloudinary(req.files.coverPhoto[0].path);
       user.coverPhoto = coverPhotoResult.secure_url;
     }
+    if (req.body.email) {
+      user.email = req.body.email;
+    }
+    if (req.body.phoneNumber) {
+      user.phoneNumber = req.body.phoneNumber;
+    }
+    if (req.body.username) {
+      user.username = req.body.username;
+    }
+    // Update avatar
+    if (req.files && req.files.avatar) {
+      const avatarResult = await cloudinary(req.files.avatar[0].path);
+      user.avatar = avatarResult.secure_url;
+    }
+
+    // Update coverPhoto
+    if (req.files && req.files.coverPhoto) {
+      const coverPhotoResult = await cloudinary(req.files.coverPhoto[0].path);
+      user.coverPhoto = coverPhotoResult.secure_url;
+    }
+
 
     const updatedUser = await user.save();
 

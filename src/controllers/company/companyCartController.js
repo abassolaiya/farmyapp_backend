@@ -434,7 +434,6 @@ const calculateCompanyTotalAmount = async (req, res) => {
       })
       .populate("logistics");
     // .populate("items.product")
-
     if (!cart) {
       return res.status(404).json({ error: "Company cart not found" });
     }

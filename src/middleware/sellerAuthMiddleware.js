@@ -21,6 +21,8 @@ const protect = asyncHandler(async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const storeId = decoded.storeId;
+    const product = await StoreProduct.findById(productId);
 
       let userType;
       if (decoded.adminId) {

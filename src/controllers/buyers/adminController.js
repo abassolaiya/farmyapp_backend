@@ -76,6 +76,7 @@ const registerAdmin = asyncHandler(async (req, res) => {
       avatar = avatarResult.secure_url;
     }
 
+    // Update coverPhoto
     if (req.files && req.files.coverPhoto) {
       const coverPhotoResult = await cloudinary(req.files.coverPhoto[0].path);
       coverPhoto = coverPhotoResult.secure_url;

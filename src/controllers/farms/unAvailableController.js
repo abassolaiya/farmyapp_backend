@@ -133,7 +133,6 @@ const createUnavailable = asyncHandler(async (req, res) => {
     images,
     numReviews: 0,
   });
-
   const createdProduct = await product.save();
   res.status(201).json(createdProduct);
 });

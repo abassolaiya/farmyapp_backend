@@ -8,9 +8,6 @@ import StoreCategory from "../../models/stores/storeCategories.js";
 import { sendEmail } from "../../utils/mailing.js";
 import TokenBlacklist from "../../models/tokenBlackListModel.js";
 
-// @desc    Auth user & get token
-// @route   POST /api/users/auth
-// @access  Public
 const authStore = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -34,7 +31,6 @@ const authStore = asyncHandler(async (req, res) => {
   }
 
   const isPasswordValid = await store.matchPassword(password);
-
   if (store && isPasswordValid) {
     const token = generateToken(store._id);
 
