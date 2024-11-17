@@ -1,21 +1,48 @@
-import express from 'express';
+import express from "express";
 import {
   authUser,
   registerUser,
   logoutUser,
   getUserProfile,
   updateUserProfile,
-} from '../../controllers/buyers/userController.js';
-import { protect } from '../../middleware/authMiddleware.js';
+  editPassword,
+  forgotPassword,
+  resetPassword,
+  addBankDetails,
+  deleteAccount,
+  recoverAccount,
+} from "../../controllers/buyers/userController.js";
+import upload from "../../utils/multer.js";
+import { protect } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post('/', registerUser);
-router.post('/auth', authUser);
-router.post('/logout', logoutUser);
+router.post(
+  "/",
+  upload.fields([
+    { name: "avatar", maxCount: 1 },
+    { name: "coverPhoto", maxCount: 1 },
+  ]),
+  registerUser
+);
+router.post("/auth", authUser);
+router.post("/logout", logoutUser);
 router
-  .route('/profile')
+  .route("/profile")
   .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+  .put(
+    protect,
+    upload.fields([
+      { name: "avatar", maxCount: 1 },
+      { name: "coverPhoto", maxCount: 1 },
+    ]),
+    updateUserProfile
+  );
+router.put("/editpassword", protect, editPassword);
+router.put("/bank", protect, addBankDetails);
+router.post("/forgotpassword", forgotPassword);
+router.post("/resetpassword", resetPassword);
+router.post("/delete", protect, deleteAccount);
+router.post("/recover", recoverAccount);
 
 export default router;
