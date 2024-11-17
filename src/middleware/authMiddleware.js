@@ -8,8 +8,7 @@ import Logistics from "../models/logistics/logisticsModel.js";
 import TokenBlacklist from "../models/tokenBlackListModel.js";
 import Admin from "../models/buyer/adminModel.js";
 
-// Middleware to protect routes
-const protect = (adminRequired = false) =>
+const protectMiddleware = (adminRequired) =>
   asyncHandler(async (req, res, next) => {
     let token = req.headers.authorization;
 
@@ -26,35 +25,29 @@ const protect = (adminRequired = false) =>
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Check for admin access
+      // Assign the user based on token type
       if (decoded.adminId) {
         req.user = await Admin.findById(decoded.adminId).select("-password");
         req.userType = "admin";
-        next();
       } else if (decoded.userId) {
         req.user = await User.findById(decoded.userId).select("-password");
         req.userType = "user";
-        next();
       } else if (decoded.storeId) {
         req.user = await Store.findById(decoded.storeId).select("-password");
         req.userType = "store";
-        next();
       } else if (decoded.farmId) {
         req.user = await Farm.findById(decoded.farmId).select("-password");
         req.userType = "farmer";
-        next();
       } else if (decoded.companyId) {
         req.user = await Company.findById(decoded.companyId).select(
           "-password"
         );
         req.userType = "company";
-        next();
       } else if (decoded.logisticsId) {
         req.user = await Logistics.findById(decoded.logisticsId).select(
           "-password"
         );
         req.userType = "logistics";
-        next();
       } else {
         res.status(401);
         throw new Error("Not authorized, invalid token");
@@ -65,10 +58,18 @@ const protect = (adminRequired = false) =>
         res.status(403);
         throw new Error("Access denied, admin only");
       }
+
+      next();
     } else {
       res.status(401);
       throw new Error("Not authorized, no token");
     }
   });
+
+// Wrapper function to allow `protect` to be used both with and without parentheses
+const protect = (adminRequired) =>
+  typeof adminRequired === "undefined"
+    ? protectMiddleware(false)
+    : protectMiddleware(adminRequired);
 
 export { protect };
